@@ -1,0 +1,11 @@
+1. 使用VMware
+直接选择打开现有虚拟机，选择解压后文件夹中的SEEDUbuntu12.04.vmx文件即可，这是虚拟机配置文件。
+
+2. 使用Virtual Box
+可以按照教程：http://www.cis.syr.edu/~wedu/seed/Documentation/VirtualBox/UseVirtualBox.pdf
+
+3. 用户名和密码
+    1） User ID: root, Password: seedubuntu.
+2） User ID: seed, Password: dees
+
+由于Ubuntu是不能直接用root用户登录的，所以都是用seed这个普通用户登录，要使用到root权限时，再sudo然后输密码(还是seed用户的密码)就可以了。
