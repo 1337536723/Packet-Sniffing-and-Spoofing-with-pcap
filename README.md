@@ -54,3 +54,82 @@ Vmware提供非常方便的功能，我们甚至不用主动设置桥接网络(i
 ![开启混杂模式](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image6.png)
 
 设置完成后，可以看到此时eth0的网络状况中多出了PROMISC，这样网卡的混杂模式就启用了。
+
+## 包的嗅探
+
+### sniffer(嗅探器)
+
+sniffer可以理解为抓包软件，也可以说是一种基于被动监听原理的网络分析方式，借助这种技术，我们可以监视网络的状态、数据流动的情况以及网络上传输的信息。Wireshark就具备sniffer的功能，而项目中为了更好地理解sniffer的工作原理，所以用到了Tim Carstens编写的sniffex程序，这个程序借助libpcap来实现sniffer的功能。
+
+### 拆解sniffex程序
+
+由于sniffex是借助pcap库实现的，所以我们可以看看程序中用到了哪些函数：
+
+- ##### char \*pcap_lookupdev(char \*errbuf);
+
+> 这个函数用于查找网络设备，返回设备列表中非环回接口(lo)的第一个设备。跑sniffex的时候可以从命令行传参，指定嗅探某个设备上的包，如果没有传参就调用这个函数找到默认的设备(比如linux上一般是eth0)。此外，如果没有可用的设备(返回NULL)就会把错误信息写到errbuf中，可以打印出来查看。
+
+
+- ##### int pcap_lookupnet(const char \*device, bpf_u_int32 \*netp, bpf_u_int32 \*maskp, char \*errbuf);
+
+> 这个函数用于获取指定设备的Ipv4网络号(IP地址)和子网掩码。失败会返回-1，并且把错误信息写入effbuf。
+
+
+- ##### pcap_t \*pcap_open_live(const char \*device, int snaplen, int promisc, int to_ms, char \*errbuf);
+
+> 这个函数用于打开指定设备，创建监听会话以进行抓包。特别地，在Linux下如果把设备名设为“any”或者“NULL”，sniffex会对所有接口都进行抓包。
+
+
+- ##### int pcap_datalink(pcap_t \*p);
+
+> 这个函数用于返回前面创建的监听会话的链路层头部类型，比方说我们希望抓取Ethernet接口的包，那么链路层头部类型就应该是“DLT_EN10MB”。
+
+
+- ##### int pcap_compile(pcap_t \*p, struct bpf_program \*fp, const char *str, int optimize, bpf_u_int32 netmask);
+
+> 这个函数用于编译一个过滤表达式。如果我们希望抓取特定类型的包或者某一个端口上的包而非所有包，就需要对数据包进行过滤。按官网的说法这个函数把过滤表达式(字符串格式，即第三个参数)转换为滤波器（pcap库中定义好的结构体，即第二个参数）。然后就可以这个滤波器进行过滤了。
+
+> 表达式用法详见：[pcap filter](http://www.tcpdump.org/manpages/pcap-filter.7.html)
+
+
+
+- ##### int pcap_setfilter(pcap_t \*p, struct bpf_program \*fp);
+
+> 这个函数用于给监听会话设置过滤器，也即前面compile得到的结构体。
+
+
+- ##### int pcap_loop(pcap_t \*p, int cnt, pcap_handler callback, u_char \*user);
+
+> 这个函数提供持续监听的功能，会一直抓包，直到抓完cnt个包时结束监听，在sniffex中默认设置的是抓10个包然后结束。callback是个回调函数，每抓到一个包就会交给这个函数处理，我们可以在里面自己编写要对抓到的包进行什么操作，sniffex里面是把抓到的包的协议、从哪里发、要发去哪解析出来，如果包里有payload，就把payload也解析出来。
+
+
+- ##### void pcap_freecode(struct bpf_program \*);
+
+> 这个函数用于释放滤波器，监听结束后，如果不再需要使用滤波器，我们就可以用这个函数把分配给滤波器的内存释放掉。
+
+
+- ##### void pcap_close(pcap_t \*p);
+
+> 这个函数用于关闭监听会话并释放相应的资源。
+
+**p.s. 以上函数的用途和原型都可以在[tcpdump](http://www.tcpdump.org/manpages/)网页对应的文件中查找到。**
+
+#### 简单归纳一下sniffex嗅探数据包的流程
+
+1. 取得网络设备，若用户未指定则利用pcap_lookupdev来获取；
+
+2. 获取设备的网络号和掩码；
+
+3. 启动设备，创建监听会话，获取到会话的句柄(Handle）；
+
+4. 验证设备是否以太网类型，是则继续，否则报错；
+
+5. 编译过滤表达式
+
+6. 把过滤表达式挂载到监听会话的句柄上，只有符合过滤规则的数据包才会被接收；
+
+7. 开始监听，直到接收到指定数量的数据包，特别地，可以通过设置回调函数来处理接收到的数据包；
+
+8. 监听结束，释放滤波器占用的空间
+
+9. 关闭监听会话并释放相应资源。
