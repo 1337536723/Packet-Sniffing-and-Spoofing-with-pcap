@@ -59,7 +59,7 @@ Vmware提供非常方便的功能，我们甚至不用主动设置桥接网络(i
 
 ### sniffer(嗅探器)
 
-sniffer可以理解为抓包软件，也可以说是一种基于被动监听原理的网络分析方式，借助这种技术，我们可以监视网络的状态、数据流动的情况以及网络上传输的信息。Wireshark就具备sniffer的功能，而项目中为了更好地理解sniffer的工作原理，所以用到了Tim Carstens编写的sniffex程序，这个程序借助libpcap来实现sniffer的功能。
+sniffer可以理解为抓包软件，也可以说是一种基于被动监听原理的网络分析方式，借助这种技术，我们可以监视网络的状态、数据流动的情况以及网络上传输的信息。Wireshark就具备sniffer的功能，而项目中为了更好地理解sniffer的工作原理，用到了Tim Carstens编写的sniffex程序，这个程序借助libpcap来实现sniffer的功能。
 
 ### 拆解sniffex程序
 
@@ -133,3 +133,48 @@ sniffer可以理解为抓包软件，也可以说是一种基于被动监听原�
 8. 监听结束，释放滤波器占用的空间
 
 9. 关闭监听会话并释放相应资源。
+
+### 运行sniffex程序
+
+运行sniffex程序除了基本的编写Makefile编译之外，有两点需要特别注意。一是需要**使用root权限**运行，二是需要**开启网卡的混杂模式**。不妨进行一下对比：
+
+#### 关于root权限
+
+首先看看不采用root权限运行时的报错：
+
+![root权限1](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image7.png)
+
+对比一下源代码不难发现实在pcap_lookupdev这个函数处出错抛出的：
+
+![root权限2](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image8.png)
+
+在使用sniffex的时候，我们需要获取网络设备，并且进行设置，而这些权限只有root用户有，普通用户权限不够自然就报错了。
+
+#### 关于混杂模式
+
+首先要清楚混杂模式和非混杂模式的区别，非混杂模式下，网卡只接收与当前主机相关的包，比方说源地址或者目的地址是当前主机，也包括广播包和多播包。 混杂模式下，网卡接收所有经过的包，即使是发往别处的包，也会进行接收，因此我们可以监听别人的数据包。
+
+在非混杂模式下，使用sniffex嗅探到的包只有以172.16.85.118(eth0的网络号)为目的，或由它发出的包。而如果启用了混杂模式，就可以抓到由网络中别的主机发出或发往别的主机的包，比如下面这个：
+
+![混杂模式](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image9.png)
+
+172.16.84.44是主机的网络号，因为前面设置了桥接模式，所以此时的网络拓扑中，虚拟的的eth0和主机是网络中各自独立的两台机器，发往主机的这个包经过了eth0，虽然与eth0无关，但由于eth0启用了混杂模式，所有经过的数据包都会被截获，所以还是能够抓下来。
+
+### 过滤表达式的使用
+
+#### 抓取两个特定主机之间的ICMP包
+
+![filter](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image10.png)
+
+![filter](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image11.png)
+
+首先限定包类型为icmp，然后限定只接收指定两台主机之间的包，这里设置为主机和eth0之间，当我从主机 ping eth0，或者从eth0 ping 主机时就会把包抓下来了，而ping其他网络的icmp包则会被过滤掉。
+
+#### 抓取目的端口号为10-100的TCP包
+
+![filter](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image12.png)
+
+![filter](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image13.png)
+
+首先使用tcp限定包的协议类型，然后用dst关键字指定后面的端口号是目的端口号，portrange可以用来限定一个端口的范围。这里抓到的包是主机发给阿里云的一个包，可以用[www.db-ip.com](www.db-ip.com)查询网络号归属。 80端口是为HTTP(超文本传输协议)开放的,是我们上网时用得最多的一个端口，一般我们浏览网页都是用的都是80端口。
+
