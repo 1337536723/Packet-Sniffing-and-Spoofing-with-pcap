@@ -178,3 +178,57 @@ sniffer可以理解为抓包软件，也可以说是一种基于被动监听原�
 
 首先使用tcp限定包的协议类型，然后用dst关键字指定后面的端口号是目的端口号，portrange可以用来限定一个端口的范围。这里抓到的包是主机发给阿里云的一个包，可以用[www.db-ip.com](www.db-ip.com)查询网络号归属。 80端口是为HTTP(超文本传输协议)开放的,是我们上网时用得最多的一个端口，一般我们浏览网页都是用的都是80端口。
 
+### 嗅探密码
+
+这是一个真正的借助嗅探器盗取密码的应用，黑客通过sniffex程序来嗅探网络中的数据包，盗取别的用户在使用Windows自带的远程登录(Telnet)程序时输入的用户名和密码。当然这里的黑客是我们自己，而受攻击的是我们自己的本机。
+
+首先需要在主机启用Telnet，Win10默认是禁用的。
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image14.png)
+
+启用Telnet之后，我们就可以在命令行直接使用telnet命令呼出Telnet客户端，然后借助Telnet登录远程主机了。
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image15.png)
+
+在Telnet客户端界面使用命令“o 主机IP 端口号”可以登录远程主机，如果不指定端口号，则默认是端口23。其中o表示open，Telnet更详细的用法不妨看看[这篇博客](http://blog.chinaunix.net/uid-26167002-id-3054040.html)。
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image16.png)
+
+连接成功会进行远程主机的登陆界面，这里我连的就是实验用的虚拟机SEEDUbuntu，用户名seed，密码dees，输入后我们就可以控制这台远程主机，调用它的一切软、硬件资源了，退出时键入exit命令回车即可。
+
+我们常常在黑客电影中听到的“肉鸡”其实就是黑客入侵了别人的主机，利用这种方法，从一个“肉鸡”再登录到另一个“肉鸡”，这样黑客在入侵过程中就不会暴露自己的IP地址，从而实现隐身的功能。
+
+回到正题，这里我们主要是希望借助sniffex嗅探到用户登录远程主机的用户名和密码，如果能嗅探到，那么我们就能入侵那台远程主机了。简单修改一下过滤表达式，嗅探telnet服务使用的端口23：
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image17.png)
+
+由于使用telnet登录远程主机时传输的包比较多，还包括一些应用数据之类的，所以这个实验要把抓包的数量调大一些，这里我直接设置为999，想停止时直接Ctrl+C就可以了。
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image18.png)
+
+比较有意思的是，发包的时候，密码和用户名都是明文逐字母发出的，两个字母之间会发一个无payload的tcp包，并且密码中的每个字母会重复发两次。
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image19.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image20.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image21.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image22.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image23.png)
+
+以上合起来倒着看就是，密码：dees
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image24.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image25.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image26.png)
+
+![telnet](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image27.png)
+
+以上合起来倒着看就是用户名，seed
+
+因为telnet采用明文传输数据，所以任何人都可以借助嗅探器来嗅探到别人的密码，非常不安全。因此，要使用远程登录功能时，最好还是使用基于ssh这样带加密功能协议的程序。
+
