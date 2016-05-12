@@ -277,3 +277,23 @@ sniffer可以理解为抓包软件，也可以说是一种基于被动监听原�
 
 ![ICMP](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image36.png)
 ![ICMP](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image37.png)
+
+### 伪造以太网帧
+
+这里我们伪造一个以太网帧，将01:02:03:04:05:06作为假的源地址。依然设定源IP为虚拟机，目标IP为主机，上层协议简单一点可以设置为UDP。
+
+![eth](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image39.png)
+
+因为要伪造以太网帧，帧的总长度就等于6Byte的源MAC地址+6Byte的目标MAC地址，加上2Byte的类型/长度，再加上里面的数据（这里是IP header + UDP header + UDP data），UDP的data里放着字符串“Test”。首先还是看看以太网帧的包头：
+
+![eth](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image40.png)
+
+![eth](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image41.png)
+
+先导位我们不用管，用memcpy设置好两个MAC地址后，在设置2Byte的类型/长度就填充好了，需要注意C的下标是从0开始的，所以这里类型字段的下标是12和13。
+
+![eth](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image42.png)
+![eth](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image43.png)
+
+设置MAC地址时注意使用十六进制整数的形式。
+
