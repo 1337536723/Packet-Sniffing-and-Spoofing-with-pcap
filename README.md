@@ -262,3 +262,18 @@ sniffer可以理解为抓包软件，也可以说是一种基于被动监听原�
 因为没有需要发送数据，所以包里面只有两个header，payload是空的。接下来创建套接字并且绑定到接口就可以发包了，注意指明IP header由我们自己提供，否则默认是由内核实现的。
 
 ![raw socket](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image32.png)
+
+### 伪造ICMP包
+
+这里我们把上层协议换为ICMP，并且在payload中填写字符数据"Test"。
+
+照例先看看header：
+
+![ICMP header](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image35.jpeg)
+
+格式大致如上，ICMP header长度是8，type字段用于指定我们需要的服务，这里我们是发一个请求回应的包，type字段的值就是ICMP_ECHO，而从主机发回的包是回复请求的，用Wireshark抓下来后查看ICMP的包头就会看到type是ICMP_REPLY；代码（Code）字段用于详细说明某种ICMP报文的类型，这里我们不需要用到，设为0即可。除了这两个字段和头部校验和，填充时还要加入identification(随意pick一个合法数字就可以了)和sequence number（第一个ping包，所以是0）。
+
+从结果来看，这个伪造的ping包能够成功骗到目标主机的ICMP回复。
+
+![ICMP](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image36.png)
+![ICMP](https://raw.githubusercontent.com/familyld/Packet-Sniffing-and-Spoofing-with-pcap/master/graph/image37.png)
